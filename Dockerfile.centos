@@ -12,30 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM registry.access.redhat.com/rhel7/rhel
+FROM centos:centos7
 
 MAINTAINER Sonatype <cloud-ops@sonatype.com>
 
-LABEL name="Nexus Repository Manager" \
-      vendor=Sonatype \
-      version="3.14.0-04" \
-      release="3.14.0" \
-      url="https://sonatype.com" \
-      summary="The Nexus Repository Manager server \
-          with universal support for popular component formats." \
-      description="The Nexus Repository Manager server \
-          with universal support for popular component formats." \
-      run="docker run -d --name NAME \
-          -p 8081:8081 \
-          IMAGE" \
-      stop="docker stop NAME" \
+LABEL vendor=Sonatype \
       com.sonatype.license="Apache License, Version 2.0" \
-      com.sonatype.name="Nexus Repository Manager base image" \
-      io.k8s.description="The Nexus Repository Manager server \
-          with universal support for popular component formats." \
-      io.k8s.display-name="Nexus Repository Manager" \
-      io.openshift.expose-services="8081:8081" \
-      io.openshift.tags="Sonatype,Nexus,Repository Manager"
+      com.sonatype.name="Nexus Repository Manager base image"
 
 ARG NEXUS_VERSION=3.14.0-04
 ARG NEXUS_DOWNLOAD_URL=https://download.sonatype.com/nexus/3/nexus-${NEXUS_VERSION}-unix.tar.gz
@@ -52,21 +35,17 @@ ENV NEXUS_HOME=${SONATYPE_DIR}/nexus \
     NEXUS_DATA=/nexus-data \
     NEXUS_CONTEXT='' \
     SONATYPE_WORK=${SONATYPE_DIR}/sonatype-work \
-    DOCKER_TYPE='rh-docker'
+    DOCKER_TYPE='docker'
 
 ARG NEXUS_REPOSITORY_MANAGER_COOKBOOK_VERSION="release-0.5.20180828-231916.863899c"
 ARG NEXUS_REPOSITORY_MANAGER_COOKBOOK_URL="https://github.com/sonatype/chef-nexus-repository-manager/releases/download/${NEXUS_REPOSITORY_MANAGER_COOKBOOK_VERSION}/chef-nexus-repository-manager.tar.gz"
 
 ADD solo.json.erb /var/chef/solo.json.erb
 
-RUN yum install -y createrepo \
-  && yum clean all
-
 # Install using chef-solo
 RUN curl -L https://www.getchef.com/chef/install.sh | bash \
     && /opt/chef/embedded/bin/erb /var/chef/solo.json.erb > /var/chef/solo.json \
     && chef-solo \
-       --node_name nexus_repository_red_hat_docker_build \
        --recipe-url ${NEXUS_REPOSITORY_MANAGER_COOKBOOK_URL} \
        --json-attributes /var/chef/solo.json \
     && rpm -qa *chef* | xargs rpm -e \
@@ -83,5 +62,4 @@ USER nexus
 
 ENV INSTALL4J_ADD_VM_PARAMS="-Xms1200m -Xmx1200m -XX:MaxDirectMemorySize=2g -Djava.util.prefs.userRoot=${NEXUS_DATA}/javaprefs"
 
-ENTRYPOINT ["/uid_entrypoint.sh"]
 CMD ["sh", "-c", "${SONATYPE_DIR}/start-nexus-repository-manager.sh"]
